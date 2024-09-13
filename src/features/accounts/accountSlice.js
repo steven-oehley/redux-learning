@@ -5,6 +5,7 @@ import {
   ACCOUNT_WITHDRAW,
   ACCOUNT_REQUEST_LOAN,
   ACCOUNT_PAY_LOAN,
+  ACCOUNT_CONVERT_DEPOSIT,
 } from "../actionTypes";
 
 // Start by creating some initial state onject
@@ -12,6 +13,7 @@ const initialStateAccount = {
   balance: 0,
   loanAmount: 0,
   loanPurpose: "",
+  isLoading: false,
 };
 
 // Then Create a reducer function that takes in the initial state and an action
@@ -24,10 +26,13 @@ export default function accountReducer(
   const { type, payload } = action;
   // actions should be written in terms of the state domain and what happened
   switch (type) {
+    case ACCOUNT_CONVERT_DEPOSIT:
+      return { ...currentState, isLoading: true };
     case ACCOUNT_DEPOSIT:
       return {
         ...currentState,
         balance: currentState.balance + payload,
+        isLoading: false,
       };
     case ACCOUNT_WITHDRAW:
       return {
@@ -58,8 +63,23 @@ export default function accountReducer(
 
 // Then create action creators
 // redux would work without action creators but convention is to use them
-function deposit(amount) {
-  return { type: ACCOUNT_DEPOSIT, payload: amount };
+function deposit(amount, currency) {
+  if (currency === "USD") return { type: ACCOUNT_DEPOSIT, payload: amount };
+
+  // redux will know that this function is the thunk
+  return async (dispatch, getState) => {
+    //API call
+
+    const host = "api.frankfurter.app";
+    dispatch({ type: ACCOUNT_CONVERT_DEPOSIT });
+    const resp = await fetch(
+      `https://${host}/latest?amount=${amount}&from=${currency}&to=USD`
+    );
+    const data = await resp.json();
+
+    const convertedAmount = data.rates.USD;
+    dispatch({ type: ACCOUNT_DEPOSIT, payload: convertedAmount });
+  };
 }
 
 function withdraw(amount) {
