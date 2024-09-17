@@ -1,24 +1,88 @@
 // slice is a piece of teh total state
+import { createSlice } from "@reduxjs/toolkit";
 
-import {
-  ACCOUNT_DEPOSIT,
-  ACCOUNT_WITHDRAW,
-  ACCOUNT_REQUEST_LOAN,
-  ACCOUNT_PAY_LOAN,
-  ACCOUNT_CONVERT_DEPOSIT,
-} from "../actionTypes";
+// import {
+//   ACCOUNT_DEPOSIT,
+//   ACCOUNT_WITHDRAW,
+//   ACCOUNT_REQUEST_LOAN,
+//   ACCOUNT_PAY_LOAN,
+//   ACCOUNT_CONVERT_DEPOSIT,
+// } from "../actionTypes";
 
-// Start by creating some initial state onject
-const initialStateAccount = {
+const initialState = {
   balance: 0,
   loanAmount: 0,
   loanPurpose: "",
   isLoading: false,
 };
 
+const accountSlice = createSlice({
+  name: "account",
+  initialState,
+  reducers: {
+    deposit(state, action) {
+      state.balance += action.payload;
+      state.isLoading = false;
+    },
+    withdraw(state, action) {
+      state.balance -= action.payload;
+    },
+    requestLoan: {
+      prepare(amount, purpose) {
+        return { payload: { amount, purpose } };
+      },
+      reducer(state, action) {
+        if (state.loanAmount > 0) {
+          return;
+        }
+        state.balance += action.payload.amount;
+        state.loanAmount = action.payload.amount;
+        state.loanPurpose = action.payload.purpose;
+      },
+    },
+    payLoan(state) {
+      state.balance -= state.loanAmount;
+      state.loanAmount = 0;
+      state.loanPurpose = "";
+    },
+    convertingCurrency(state) {
+      state.isLoading = true;
+    },
+  },
+});
+
+export const { withdraw, requestLoan, payLoan } = accountSlice.actions;
+
+export function deposit(amount, currency) {
+  if (currency === "USD") return { type: "account/deposit", payload: amount };
+  return async function (dispatch, getState) {
+    const host = "api.frankfurter.app";
+    dispatch({ type: "account/convertingCurrency" });
+    const resp = await fetch(
+      `https://${host}/latest?amount=${amount}&from=${currency}&to=USD`
+    );
+    const data = await resp.json();
+    const convertedAmount = data.rates.USD;
+    dispatch({ type: "account/deposit", payload: convertedAmount });
+  };
+}
+
+export default accountSlice.reducer;
+
+// CLASSIC REDUX BASED APPROACH
+
+// Start by creating some initial state onject
+
+// const initialStateAccount = {
+//   balance: 0,
+//   loanAmount: 0,
+//   loanPurpose: "",
+//   isLoading: false,
+// };
+
 // Then Create a reducer function that takes in the initial state and an action
 
-export default function accountReducer(
+/*export default function accountReducer(
   currentState = initialStateAccount,
   action
 ) {
@@ -98,3 +162,4 @@ function payLoan() {
 }
 
 export { deposit, withdraw, requestLoan, payLoan };
+*/
